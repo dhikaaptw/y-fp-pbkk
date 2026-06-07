@@ -17,3 +17,17 @@ class User(Base):
     comments  = relationship("Comment", back_populates="owner",    cascade="all, delete")
     likes     = relationship("Like",    back_populates="user",     cascade="all, delete")
     saves     = relationship("Save",    back_populates="user",     cascade="all, delete")
+
+class Post(Base):
+    __tablename__ = "posts"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    content    = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    owner_id   = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    owner    = relationship("User",    back_populates="posts")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete")
+    likes    = relationship("Like",    back_populates="post", cascade="all, delete")
+    saves    = relationship("Save",    back_populates="post", cascade="all, delete")
