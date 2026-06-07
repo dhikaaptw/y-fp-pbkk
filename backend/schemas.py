@@ -22,6 +22,7 @@ class UserOut(BaseModel):
         from_attributes = True
 
 class UserProfile(BaseModel):
+    """User + stats follow & jumlah post."""
     id: int
     username: str
     email: str
@@ -37,6 +38,20 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     user: UserOut
+
+# comment
+class CommentCreate(BaseModel):
+    content: str
+
+class CommentOut(BaseModel):
+    id: int
+    content: str
+    created_at: datetime
+    post_id: int
+    owner_id: int
+    owner: UserOut
+    class Config:
+        from_attributes = True
 
 #post
 class PostCreate(BaseModel):
@@ -55,7 +70,21 @@ class PostOut(BaseModel):
     like_count: int
     comment_count: int
     save_count: int
-    is_liked: bool 
-    is_saved: bool   
+    is_liked: bool
+    is_saved: bool
+    comments: List[CommentOut] = []
     class Config:
         from_attributes = True
+
+class FollowOut(BaseModel):
+    message: str
+    is_following: bool
+
+class LikeOut(BaseModel):
+    message: str
+    is_liked: bool
+    like_count: int
+
+class SaveOut(BaseModel):
+    message: str
+    is_saved: bool
