@@ -59,6 +59,10 @@ def get_all_posts(skip: int = 0, limit: int = 50, db: Session = Depends(get_db),
 @app.post("/posts", response_model=schemas.PostOut, status_code=201)
 def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db),
                 current_user: models.User = Depends(auth.get_current_user)):
+    if not post_data.content.strip():
+        raise HTTPException(400, "Post tidak boleh kosong")
+    if len(post_data.content) > 280:
+        raise HTTPException(400, "Post maksimal 280 karakter")
     post = models.Post(content=post_data.content, owner_id=current_user.id)
     db.add(post); db.commit(); db.refresh(post)
     return enrich_post(post, db, current_user)
