@@ -26,6 +26,23 @@ def load_styles():
   background-size: 10px 10px;
 }
 
-/* ... (isi lengkap styles.py) */
-</style>
-""", unsafe_allow_html=True)
+
+.alert-ok, .alert-err {
+  border-radius: 0;
+  padding: 0.55rem 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  margin: 0.5rem 0;
+}
+
+.alert-ok {
+  background: #0e1a12;
+  border: 1px solid #284431;
+  color: #8fd8a7;
+}
+
+.alert-err {
+  background: #1d0d0d;
+  border: 1px solid #4c2222;
+  color: #e08383;
+}
