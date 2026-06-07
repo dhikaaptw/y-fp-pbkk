@@ -22,7 +22,6 @@ class UserOut(BaseModel):
         from_attributes = True
 
 class UserProfile(BaseModel):
-    """User + stats follow & jumlah post."""
     id: int
     username: str
     email: str
