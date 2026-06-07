@@ -85,3 +85,19 @@ def delete_post(post_id: int, db: Session = Depends(get_db),
     if not post: raise HTTPException(404, "Post tidak ditemukan")
     if post.owner_id != current_user.id: raise HTTPException(403, "Bukan post kamu")
     db.delete(post); db.commit()
+
+@app.get("/posts/search", response_model=List[schemas.PostOut])
+def search_posts(username: str, db: Session = Depends(get_db),
+                 current_user: Optional[models.User] = Depends(auth.get_optional_user)):
+    posts = (db.query(models.Post).join(models.User)
+             .filter(models.User.username.ilike(f"%{username}%"))
+             .order_by(models.Post.created_at.desc()).all())
+    return [enrich_post(p, db, current_user) for p in posts]
+
+@app.get("/posts/saved", response_model=List[schemas.PostOut])
+def get_saved_posts(db: Session = Depends(get_db),
+                    current_user: models.User = Depends(auth.get_current_user)):
+    saved_post_ids = [s.post_id for s in current_user.saves]
+    posts = (db.query(models.Post).filter(models.Post.id.in_(saved_post_ids))
+             .order_by(models.Post.created_at.desc()).all())
+    return [enrich_post(p, db, current_user) for p in posts]
