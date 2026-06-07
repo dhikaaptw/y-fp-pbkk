@@ -3,7 +3,7 @@ import api
 from utils import alert, clean, fmt_time
 
 
-def render_post_card(post, show_actions=True, ctx=""):
+ def render_post_card(post, show_actions=True, ctx=""):
     pid = f"{ctx}{post['id']}"
     is_mine = st.session_state.user and post["owner_id"] == st.session_state.user["id"]
     card_cls = "post-card post-mine" if is_mine else "post-card"
@@ -35,3 +35,4 @@ def render_post_card(post, show_actions=True, ctx=""):
 
     if not show_actions:
         return
+        
