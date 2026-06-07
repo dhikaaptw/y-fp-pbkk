@@ -101,3 +101,70 @@ def get_saved_posts(db: Session = Depends(get_db),
     posts = (db.query(models.Post).filter(models.Post.id.in_(saved_post_ids))
              .order_by(models.Post.created_at.desc()).all())
     return [enrich_post(p, db, current_user) for p in posts]
+
+#like comment save follow
+@app.post("/posts/{post_id}/like", response_model=schemas.LikeOut)
+def toggle_like(post_id: int, db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post: raise HTTPException(404, "Post tidak ditemukan")
+    existing = db.query(models.Like).filter(
+        models.Like.user_id == current_user.id, models.Like.post_id == post_id).first()
+    if existing:
+        db.delete(existing); db.commit(); db.refresh(post)
+        return {"message": "Unlike", "is_liked": False, "like_count": len(post.likes)}
+    else:
+        db.add(models.Like(user_id=current_user.id, post_id=post_id))
+        db.commit(); db.refresh(post)
+        return {"message": "Like", "is_liked": True, "like_count": len(post.likes)}
+
+@app.post("/posts/{post_id}/comments", response_model=schemas.CommentOut, status_code=201)
+def add_comment(post_id: int, data: schemas.CommentCreate,
+                db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post: raise HTTPException(404, "Post tidak ditemukan")
+    if not data.content.strip(): raise HTTPException(400, "Komentar tidak boleh kosong")
+    comment = models.Comment(content=data.content, post_id=post_id, owner_id=current_user.id)
+    db.add(comment); db.commit(); db.refresh(comment)
+    return comment
+
+@app.delete("/comments/{comment_id}", status_code=204)
+def delete_comment(comment_id: int, db: Session = Depends(get_db),
+                   current_user: models.User = Depends(auth.get_current_user)):
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment: raise HTTPException(404, "Komentar tidak ditemukan")
+    if comment.owner_id != current_user.id: raise HTTPException(403, "Bukan komentar kamu")
+    db.delete(comment); db.commit()
+
+@app.post("/posts/{post_id}/save", response_model=schemas.SaveOut)
+def toggle_save(post_id: int, db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post: raise HTTPException(404, "Post tidak ditemukan")
+    existing = db.query(models.Save).filter(
+        models.Save.user_id == current_user.id, models.Save.post_id == post_id).first()
+    if existing:
+        db.delete(existing); db.commit()
+        return {"message": "Post dihapus dari simpanan", "is_saved": False}
+    else:
+        db.add(models.Save(user_id=current_user.id, post_id=post_id))
+        db.commit()
+        return {"message": "Post disimpan", "is_saved": True}
+
+@app.post("/users/{username}/follow", response_model=schemas.FollowOut)
+def toggle_follow(username: str, db: Session = Depends(get_db),
+                  current_user: models.User = Depends(auth.get_current_user)):
+    target = db.query(models.User).filter(models.User.username == username).first()
+    if not target: raise HTTPException(404, "User tidak ditemukan")
+    if target.id == current_user.id: raise HTTPException(400, "Tidak bisa follow diri sendiri")
+    existing = db.query(models.Follow).filter(
+        models.Follow.follower_id == current_user.id,
+        models.Follow.following_id == target.id).first()
+    if existing:
+        db.delete(existing); db.commit()
+        return {"message": f"Unfollow @{username}", "is_following": False}
+    else:
+        db.add(models.Follow(follower_id=current_user.id, following_id=target.id))
+        db.commit()
+        return {"message": f"Follow @{username}", "is_following": True}
