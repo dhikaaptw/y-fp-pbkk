@@ -15,11 +15,12 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 
 @app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
-    user = models.User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=auth.hash_password(user_data.password)
-    )
+    if db.query(models.User).filter(models.User.email == user_data.email).first():
+        raise HTTPException(400, "Email sudah terdaftar")
+    if db.query(models.User).filter(models.User.username == user_data.username).first():
+        raise HTTPException(400, "Username sudah dipakai")
+    user = models.User(username=user_data.username, email=user_data.email,
+                       hashed_password=auth.hash_password(user_data.password))
     db.add(user); db.commit(); db.refresh(user)
     return user
 
