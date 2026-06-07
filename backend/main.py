@@ -12,6 +12,18 @@ app = FastAPI(title="Aplikasi Y API", version="2.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
+def enrich_post(post, db, current_user=None):
+    uid = current_user.id if current_user else -1
+    is_liked = any(l.user_id == uid for l in post.likes)
+    is_saved = any(s.user_id == uid for s in post.saves)
+    return {
+        "id": post.id, "content": post.content,
+        "created_at": post.created_at, "updated_at": post.updated_at,
+        "owner_id": post.owner_id, "owner": post.owner,
+        "like_count": len(post.likes), "comment_count": len(post.comments),
+        "save_count": len(post.saves), "is_liked": is_liked,
+        "is_saved": is_saved, "comments": post.comments,
+    }
 
 @app.post("/auth/register", response_model=schemas.UserOut, status_code=201)
 def register(user_data: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -35,3 +47,37 @@ def login(credentials: schemas.UserLogin, db: Session = Depends(get_db)):
 @app.get("/auth/me", response_model=schemas.UserOut)
 def get_me(current_user: models.User = Depends(auth.get_current_user)):
     return current_user
+
+# post 
+
+@app.get("/posts", response_model=List[schemas.PostOut])
+def get_all_posts(skip: int = 0, limit: int = 50, db: Session = Depends(get_db),
+                  current_user: Optional[models.User] = Depends(auth.get_optional_user)):
+    posts = db.query(models.Post).order_by(models.Post.created_at.desc()).offset(skip).limit(limit).all()
+    return [enrich_post(p, db, current_user) for p in posts]
+
+@app.post("/posts", response_model=schemas.PostOut, status_code=201)
+def create_post(post_data: schemas.PostCreate, db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = models.Post(content=post_data.content, owner_id=current_user.id)
+    db.add(post); db.commit(); db.refresh(post)
+    return enrich_post(post, db, current_user)
+
+@app.put("/posts/{post_id}", response_model=schemas.PostOut)
+def update_post(post_id: int, post_data: schemas.PostUpdate,
+                db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post: raise HTTPException(404, "Post tidak ditemukan")
+    if post.owner_id != current_user.id: raise HTTPException(403, "Bukan post kamu")
+    post.content = post_data.content
+    db.commit(); db.refresh(post)
+    return enrich_post(post, db, current_user)
+
+@app.delete("/posts/{post_id}", status_code=204)
+def delete_post(post_id: int, db: Session = Depends(get_db),
+                current_user: models.User = Depends(auth.get_current_user)):
+    post = db.query(models.Post).filter(models.Post.id == post_id).first()
+    if not post: raise HTTPException(404, "Post tidak ditemukan")
+    if post.owner_id != current_user.id: raise HTTPException(403, "Bukan post kamu")
+    db.delete(post); db.commit()
